@@ -1,6 +1,10 @@
 
+import { ObjectId } from 'mongodb';
+
 import { registerUser } from '../services/user-service.js';
 import { loginUser } from '../services/auth-service.js';
+import { getDatabase } from '../db/database.js';
+import { authenticateRequest } from '../middleware/auth-middleware.js';
 
 export async function handleAuthRoutes(req, res, pathname) {
     const isRegister =
@@ -10,6 +14,85 @@ export async function handleAuthRoutes(req, res, pathname) {
     const isLogin =
         req.method === 'POST' &&
         pathname === '/api/v1/auth/login';
+
+    const isMe =
+        req.method === 'GET' &&
+        pathname === '/api/v1/auth/me';
+
+    if (isMe) {
+        try {
+            const auth = authenticateRequest(req);
+
+            if (!auth.authenticated) {
+                res.writeHead(auth.statusCode, {
+                    'Content-Type': 'application/json'
+                });
+
+                res.end(JSON.stringify({
+                    status: 'error',
+                    message: auth.message
+                }));
+
+                return true;
+            }
+
+            const db = getDatabase();
+
+            const user = await db.collection('users').findOne(
+                { _id: new ObjectId(auth.userId) },
+                {
+                    projection: {
+                        passwordHash: 0
+                    }
+                }
+            );
+
+            if (!user) {
+                res.writeHead(401, {
+                    'Content-Type': 'application/json'
+                });
+
+                res.end(JSON.stringify({
+                    status: 'error',
+                    message: 'User account not found'
+                }));
+
+                return true;
+            }
+
+            res.writeHead(200, {
+                'Content-Type': 'application/json'
+            });
+
+            res.end(JSON.stringify({
+                status: 'success',
+                message: 'User details retrieved successfully',
+                data: {
+                    user: {
+                        id: user._id.toString(),
+                        name: user.name,
+                        email: user.email,
+                        createdAt: user.createdAt
+                    }
+                }
+            }));
+
+            return true;
+        } catch (error) {
+            console.error('Authentication error:', error);
+
+            res.writeHead(500, {
+                'Content-Type': 'application/json'
+            });
+
+            res.end(JSON.stringify({
+                status: 'error',
+                message: 'Internal server error'
+            }));
+
+            return true;
+        }
+    }
 
     if (!isRegister && !isLogin) {
         return false;
