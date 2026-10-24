@@ -13,6 +13,7 @@ import { setupDatabase } from './db/setup.js';
 import { handleAuthRoutes } from './routes/auth-routes.js';
 import { handleFinancialEventRoutes } from './routes/financial-event-routes.js';
 import { handleGoalRoutes } from './routes/goal-routes.js';
+import { handleFinancialProfileRoutes } from './routes/financial-profile-routes.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -64,6 +65,16 @@ const server = createServer(async (req, res) => {
 );
 
 if (goalRoutesHandled) {
+    return;
+}
+const financialProfileRoutesHandled =
+    await handleFinancialProfileRoutes(
+        req,
+        res,
+        pathname
+    );
+
+if (financialProfileRoutesHandled) {
     return;
 }
 
