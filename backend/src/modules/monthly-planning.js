@@ -61,19 +61,26 @@ export function createMonthlyPlan({
         });
 
 
+    
     const feasibility = baseFeasibility.map(item => {
         const allocated = allocation.allocations.find(
             entry => entry.goalId === item.goalId
         );
 
+        const requiresDeadlineReview =
+            item.deadlineStatus === 'deadline_reached';
+
         return {
             ...item,
             allocatedContribution:
                 allocated?.allocatedContribution ?? 0,
-            allocationShortfall:
-                allocated?.shortfall ?? item.requiredMonthlyContribution
+            allocationShortfall: requiresDeadlineReview
+                ? null
+                : allocated?.shortfall ?? item.requiredMonthlyContribution,
+            requiresDeadlineReview
         };
     });
+
 
     return {
         capacity,

@@ -254,3 +254,33 @@ test('does not allocate an overdue goal as if its full remaining balance were a 
     assert.equal(overdueGoal.allocatedContribution, 0);
     assert.equal(activeGoal.allocatedContribution, 6000);
 });
+
+test('marks overdue goals for deadline review instead of reporting a numeric allocation shortfall', () => {
+    const plan = createMonthlyPlan({
+        financialProfile: {
+            monthlyIncome: 30000,
+            essentialExpenses: 10000,
+            mandatoryDebtPayments: 0,
+            currentEmergencyReserve: 10000,
+            emergencyReserveTarget: 10000
+        },
+        goals: [
+            {
+                id: 'overdue-goal',
+                targetAmount: 100000,
+                currentSavings: 40000,
+                monthsRemaining: 0,
+                priority: 1
+            }
+        ]
+    });
+
+    const overdueGoal = plan.feasibility.find(
+        goal => goal.goalId === 'overdue-goal'
+    );
+
+    assert.equal(overdueGoal.remainingAmount, 60000);
+    assert.equal(overdueGoal.requiredMonthlyContribution, null);
+    assert.equal(overdueGoal.allocationShortfall, null);
+    assert.equal(overdueGoal.requiresDeadlineReview, true);
+});
