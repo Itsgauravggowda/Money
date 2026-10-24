@@ -34,6 +34,7 @@ export function createMonthlyPlan({
         })
     }));
 
+    
     const allocation = capacity.hasMonthlyDeficit
         ? {
             allocations: [],
@@ -43,15 +44,22 @@ export function createMonthlyPlan({
         }
         : allocateGoalContributions({
             availableForGoals: capacity.availableForGoals,
-            goals: goals.map(goal => ({
-                id: goal.id,
-                priority: goal.priority,
-                requiredContribution:
-                    baseFeasibility.find(
-                        item => item.goalId === goal.id
-                    ).requiredMonthlyContribution
-            }))
+            goals: goals.map(goal => {
+                const goalFeasibility = baseFeasibility.find(
+                    item => item.goalId === goal.id
+                );
+
+                return {
+                    id: goal.id,
+                    priority: goal.priority,
+                    requiredContribution:
+                        goalFeasibility.deadlineStatus === 'deadline_reached'
+                            ? 0
+                            : goalFeasibility.requiredMonthlyContribution
+                };
+            })
         });
+
 
     const feasibility = baseFeasibility.map(item => {
         const allocated = allocation.allocations.find(

@@ -214,3 +214,43 @@ test('includes deadline status in monthly plan feasibility results', () => {
         'deadline_reached'
     );
 });
+
+test('does not allocate an overdue goal as if its full remaining balance were a normal monthly contribution', () => {
+    const plan = createMonthlyPlan({
+        financialProfile: {
+            monthlyIncome: 30000,
+            essentialExpenses: 10000,
+            mandatoryDebtPayments: 0,
+            currentEmergencyReserve: 10000,
+            emergencyReserveTarget: 10000
+        },
+        goals: [
+            {
+                id: 'overdue-goal',
+                targetAmount: 100000,
+                currentSavings: 40000,
+                monthsRemaining: 0,
+                priority: 1
+            },
+            {
+                id: 'active-goal',
+                targetAmount: 60000,
+                currentSavings: 0,
+                monthsRemaining: 10,
+                priority: 2
+            }
+        ]
+    });
+
+    const overdueGoal = plan.allocation.allocations.find(
+        item => item.goalId === 'overdue-goal'
+    );
+
+    const activeGoal = plan.allocation.allocations.find(
+        item => item.goalId === 'active-goal'
+    );
+
+    assert.equal(overdueGoal.requestedContribution, 0);
+    assert.equal(overdueGoal.allocatedContribution, 0);
+    assert.equal(activeGoal.allocatedContribution, 6000);
+});
