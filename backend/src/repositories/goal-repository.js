@@ -8,7 +8,6 @@ export async function createGoal(userId, goal) {
     }
 
     const db = getDatabase();
-
     const now = new Date();
 
     const document = {
@@ -37,4 +36,31 @@ export async function getGoalsByUser(userId) {
         .find({ userId: new ObjectId(userId) })
         .sort({ createdAt: -1 })
         .toArray();
+}
+
+export async function updateGoalByUser(userId, goalId, updates) {
+    if (!ObjectId.isValid(userId) || !ObjectId.isValid(goalId)) {
+        throw new Error('A valid user ID and goal ID are required');
+    }
+
+    const db = getDatabase();
+
+    const result = await db.collection('goals').findOneAndUpdate(
+        {
+            _id: new ObjectId(goalId),
+            userId: new ObjectId(userId)
+        },
+        {
+            $set: {
+                ...updates,
+                updatedAt: new Date()
+            }
+        },
+        {
+            returnDocument: 'after'
+        }
+    );
+
+    // Support both modern and older MongoDB driver return formats.
+    return result?.value ?? result;
 }

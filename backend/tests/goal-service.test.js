@@ -24,3 +24,11 @@ test('exposes functions for creating and retrieving user goals', () => {
     assert.equal(typeof createUserGoal, 'function');
     assert.equal(typeof getUserGoals, 'function');
 });
+
+test('exposes a function for updating user goals', async () => {
+    const { updateUserGoal } = await import(
+        '../src/services/goal-service.js'
+    );
+
+    assert.equal(typeof updateUserGoal, 'function');
+});
