@@ -1,6 +1,8 @@
 
 import { createMonthlyPlan } from './monthly-planning.js';
-
+import {
+    calculateGoalCompletionMonths
+} from './goal-feasibility.js';
 const PROFILE_FIELDS = [
     'monthlyIncome',
     'essentialExpenses',
@@ -112,14 +114,29 @@ function buildPlan(profile, goals, inflationRate) {
             annualInflationRate: inflationRate,
             annualInflationPercent: inflationRate * 100
         },
-        goals: adjustedGoals.map(goal => ({
-            id: goal.id,
-            name: goal.name ?? goal.id,
-            targetAmount: goal.targetAmount,
-            currentSavings: goal.currentSavings,
-            monthsRemaining: goal.monthsRemaining,
-            priority: goal.priority
-        }))
+        
+goals: adjustedGoals.map(goal => {
+    const feasibility = plan.feasibility.find(
+        item => item.goalId === goal.id
+    );
+
+    return {
+        id: goal.id,
+        name: goal.name ?? goal.id,
+        targetAmount: goal.targetAmount,
+        currentSavings: goal.currentSavings,
+        monthsRemaining: goal.monthsRemaining,
+        priority: goal.priority,
+        estimatedCompletionMonths:
+            calculateGoalCompletionMonths({
+                targetAmount: goal.targetAmount,
+                currentSavings: goal.currentSavings,
+                monthlyContribution:
+                    feasibility?.allocatedContribution ?? 0
+            })
+    };
+})
+
     };
 }
 

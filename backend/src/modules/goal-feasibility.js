@@ -76,3 +76,33 @@ return {
     deadlineStatus
 };
 }
+
+export function calculateGoalCompletionMonths({
+    targetAmount,
+    currentSavings,
+    monthlyContribution
+}) {
+    validateNonNegativeNumber('targetAmount', targetAmount);
+    validateNonNegativeNumber('currentSavings', currentSavings);
+    validateNonNegativeNumber(
+        'monthlyContribution',
+        monthlyContribution
+    );
+
+    const remainingAmount = Math.max(
+        0,
+        targetAmount - currentSavings
+    );
+
+    if (remainingAmount === 0) {
+        return 0;
+    }
+
+    if (monthlyContribution === 0) {
+        return null;
+    }
+
+    return Math.ceil(
+        remainingAmount / monthlyContribution
+    );
+}
