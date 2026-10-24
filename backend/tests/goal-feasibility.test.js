@@ -86,3 +86,16 @@ test('rejects negative months remaining', () => {
     );
 });
 
+
+test('identifies the monthly contribution required for a goal independently of other goals', () => {
+    const result = calculateGoalFeasibility({
+        targetAmount: 120000,
+        currentSavings: 20000,
+        monthsRemaining: 10,
+        monthlyContributionCapacity: 20000
+    });
+
+    assert.equal(result.remainingAmount, 100000);
+    assert.equal(result.requiredMonthlyContribution, 10000);
+    assert.equal(result.achievable, true);
+});

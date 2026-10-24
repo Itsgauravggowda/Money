@@ -23,7 +23,7 @@ export function createMonthlyPlan({
         throw new Error('goals must be an array');
     }
 
-    const feasibility = goals.map(goal => ({
+    const baseFeasibility = goals.map(goal => ({
         goalId: goal.id,
         ...calculateGoalFeasibility({
             targetAmount: goal.targetAmount,
@@ -47,11 +47,25 @@ export function createMonthlyPlan({
                 id: goal.id,
                 priority: goal.priority,
                 requiredContribution:
-                    feasibility.find(
+                    baseFeasibility.find(
                         item => item.goalId === goal.id
                     ).requiredMonthlyContribution
             }))
         });
+
+    const feasibility = baseFeasibility.map(item => {
+        const allocated = allocation.allocations.find(
+            entry => entry.goalId === item.goalId
+        );
+
+        return {
+            ...item,
+            allocatedContribution:
+                allocated?.allocatedContribution ?? 0,
+            allocationShortfall:
+                allocated?.shortfall ?? item.requiredMonthlyContribution
+        };
+    });
 
     return {
         capacity,

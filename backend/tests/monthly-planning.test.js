@@ -132,3 +132,59 @@ test('rejects invalid goals input', () => {
         /goals must be an array/
     );
 });
+
+
+test('does not treat individually achievable goals as jointly affordable when their combined contributions exceed the budget', () => {
+    const plan = createMonthlyPlan({
+        financialProfile: {
+            monthlyIncome: 30000,
+            essentialExpenses: 10000,
+            mandatoryDebtPayments: 0,
+            currentEmergencyReserve: 10000,
+            emergencyReserveTarget: 10000
+        },
+        goals: [
+            {
+                id: 'education',
+                targetAmount: 120000,
+                currentSavings: 20000,
+                monthsRemaining: 10,
+                priority: 1
+            },
+            {
+                id: 'laptop',
+                targetAmount: 120000,
+                currentSavings: 0,
+                monthsRemaining: 10,
+                priority: 1
+            }
+        ]
+    });
+
+    assert.equal(plan.capacity.availableForGoals, 20000);
+
+    assert.equal(plan.feasibility[0].achievable, true);
+    assert.equal(plan.feasibility[1].achievable, true);
+
+    assert.equal(plan.allocation.requiresDecision, true);
+    
+    assert.equal(
+    plan.feasibility[0].allocatedContribution,
+    0
+);
+
+assert.equal(
+    plan.feasibility[0].allocationShortfall,
+    10000
+);
+
+assert.equal(
+    plan.feasibility[1].allocatedContribution,
+    0
+);
+
+assert.equal(
+    plan.feasibility[1].allocationShortfall,
+    12000
+);
+});
