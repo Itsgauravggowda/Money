@@ -35,6 +35,7 @@ test('identifies a goal with a projected shortfall', () => {
     assert.equal(result.achievable, false);
 });
 
+
 test('recognises a goal that is already fully funded', () => {
     const result = calculateGoalFeasibility({
         targetAmount: 100000,
@@ -46,7 +47,9 @@ test('recognises a goal that is already fully funded', () => {
     assert.equal(result.remainingAmount, 0);
     assert.equal(result.requiredMonthlyContribution, 0);
     assert.equal(result.achievable, true);
+    assert.equal(result.deadlineStatus, 'funded');
 });
+
 
 test('identifies an unfunded goal whose deadline has arrived', () => {
     const result = calculateGoalFeasibility({
@@ -98,4 +101,17 @@ test('identifies the monthly contribution required for a goal independently of o
     assert.equal(result.remainingAmount, 100000);
     assert.equal(result.requiredMonthlyContribution, 10000);
     assert.equal(result.achievable, true);
+});
+
+test('identifies an overdue goal that still has money remaining', () => {
+    const result = calculateGoalFeasibility({
+        targetAmount: 100000,
+        currentSavings: 40000,
+        monthsRemaining: 0,
+        monthlyContributionCapacity: 10000
+    });
+
+    assert.equal(result.remainingAmount, 60000);
+    assert.equal(result.achievable, false);
+    assert.equal(result.projectedShortfall, 60000);
 });

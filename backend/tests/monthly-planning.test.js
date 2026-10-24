@@ -188,3 +188,29 @@ assert.equal(
     12000
 );
 });
+
+test('includes deadline status in monthly plan feasibility results', () => {
+    const plan = createMonthlyPlan({
+        financialProfile: {
+            monthlyIncome: 30000,
+            essentialExpenses: 10000,
+            mandatoryDebtPayments: 0,
+            currentEmergencyReserve: 10000,
+            emergencyReserveTarget: 10000
+        },
+        goals: [
+            {
+                id: 'overdue-goal',
+                targetAmount: 100000,
+                currentSavings: 40000,
+                monthsRemaining: 0,
+                priority: 1
+            }
+        ]
+    });
+
+    assert.equal(
+        plan.feasibility[0].deadlineStatus,
+        'deadline_reached'
+    );
+});

@@ -57,12 +57,20 @@ export function calculateGoalFeasibility({
         targetAmount - projectedAmount
     );
 
-    return {
-        remainingAmount,
-        requiredMonthlyContribution,
-        monthlyContributionCapacity,
-        projectedAmount,
-        projectedShortfall,
-        achievable
-    };
+    const deadlineStatus =
+    remainingAmount === 0
+        ? 'funded'
+        : monthsRemaining === 0
+            ? 'deadline_reached'
+            : 'active';
+
+return {
+    remainingAmount,
+    requiredMonthlyContribution,
+    monthlyContributionCapacity,
+    projectedAmount,
+    projectedShortfall,
+    achievable,
+    deadlineStatus
+};
 }
