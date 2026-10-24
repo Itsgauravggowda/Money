@@ -14,6 +14,7 @@ import { handleAuthRoutes } from './routes/auth-routes.js';
 import { handleFinancialEventRoutes } from './routes/financial-event-routes.js';
 import { handleGoalRoutes } from './routes/goal-routes.js';
 import { handleFinancialProfileRoutes } from './routes/financial-profile-routes.js';
+import { handleMonthlyPlanningRoutes } from './routes/monthly-planning-routes.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -75,6 +76,16 @@ const financialProfileRoutesHandled =
     );
 
 if (financialProfileRoutesHandled) {
+    return;
+}
+const monthlyPlanningRoutesHandled =
+    await handleMonthlyPlanningRoutes(
+        req,
+        res,
+        pathname
+    );
+
+if (monthlyPlanningRoutesHandled) {
     return;
 }
 
