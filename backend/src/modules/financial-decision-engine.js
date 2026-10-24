@@ -1,8 +1,10 @@
 
 import { createMonthlyPlan } from './monthly-planning.js';
+
 import {
     calculateGoalCompletionMonths
 } from './goal-feasibility.js';
+
 const PROFILE_FIELDS = [
     'monthlyIncome',
     'essentialExpenses',
@@ -56,10 +58,18 @@ function validateInputs(financialProfile, goals, scenario) {
         throw new Error('goals must be an array');
     }
 
+    const goalIds = new Set();
+
     for (const goal of goals) {
         if (!goal || typeof goal.id !== 'string') {
             throw new Error('Each goal must have a string id');
         }
+
+        if (goalIds.has(goal.id)) {
+            throw new Error(`Duplicate goal id "${goal.id}"`);
+        }
+
+        goalIds.add(goal.id);
 
         for (const field of [
             'targetAmount',
@@ -76,6 +86,16 @@ function validateInputs(financialProfile, goals, scenario) {
                     `${field} must be a non-negative number`
                 );
             }
+        }
+
+        if (
+            !Number.isInteger(goal.monthsRemaining) ||
+            !Number.isInteger(goal.priority) ||
+            goal.priority < 1
+        ) {
+            throw new Error(
+                'monthsRemaining must be an integer and priority must be a positive integer'
+            );
         }
     }
 
@@ -110,33 +130,34 @@ function buildPlan(profile, goals, inflationRate) {
 
     return {
         ...plan,
+
         assumptions: {
             annualInflationRate: inflationRate,
             annualInflationPercent: inflationRate * 100
         },
-        
-goals: adjustedGoals.map(goal => {
-    const feasibility = plan.feasibility.find(
-        item => item.goalId === goal.id
-    );
 
-    return {
-        id: goal.id,
-        name: goal.name ?? goal.id,
-        targetAmount: goal.targetAmount,
-        currentSavings: goal.currentSavings,
-        monthsRemaining: goal.monthsRemaining,
-        priority: goal.priority,
-        estimatedCompletionMonths:
-            calculateGoalCompletionMonths({
+        goals: adjustedGoals.map(goal => {
+            const feasibility = plan.feasibility.find(
+                item => item.goalId === goal.id
+            );
+
+            return {
+                id: goal.id,
+                name: goal.name ?? goal.id,
                 targetAmount: goal.targetAmount,
                 currentSavings: goal.currentSavings,
-                monthlyContribution:
-                    feasibility?.allocatedContribution ?? 0
-            })
-    };
-})
+                monthsRemaining: goal.monthsRemaining,
+                priority: goal.priority,
 
+                estimatedCompletionMonths:
+                    calculateGoalCompletionMonths({
+                        targetAmount: goal.targetAmount,
+                        currentSavings: goal.currentSavings,
+                        monthlyContribution:
+                            feasibility?.allocatedContribution ?? 0
+                    })
+            };
+        })
     };
 }
 
@@ -232,6 +253,7 @@ function applyScenario(profile, goals, scenario) {
         profile: updatedProfile,
         goals: updatedGoals,
         oneTimeExpense,
+
         uncoveredOneTimeExpense: Math.max(
             0,
             oneTimeExpense - reserveBeforeShock
@@ -254,16 +276,44 @@ function comparePlans(baseline, alternative) {
             goal => goal.goalId === goalId
         );
 
+        const baselineGoal = baseline.goals.find(
+            goal => goal.id === goalId
+        );
+
+        const alternativeGoal = alternative.goals.find(
+            goal => goal.id === goalId
+        );
+
+        const baselineMonths =
+            baselineGoal?.estimatedCompletionMonths ?? null;
+
+        const alternativeMonths =
+            alternativeGoal?.estimatedCompletionMonths ?? null;
+
         return {
             goalId,
+
             baseline: before ?? null,
             alternative: after ?? null,
+
             allocatedContributionChange:
                 (after?.allocatedContribution ?? 0) -
                 (before?.allocatedContribution ?? 0),
+
             projectedShortfallChange:
                 (after?.projectedShortfall ?? 0) -
-                (before?.projectedShortfall ?? 0)
+                (before?.projectedShortfall ?? 0),
+
+            baselineEstimatedCompletionMonths: baselineMonths,
+
+            alternativeEstimatedCompletionMonths:
+                alternativeMonths,
+
+            estimatedCompletionMonthsChange:
+                baselineMonths === null ||
+                alternativeMonths === null
+                    ? null
+                    : alternativeMonths - baselineMonths
         };
     });
 
@@ -271,12 +321,15 @@ function comparePlans(baseline, alternative) {
         availableForGoalsChange:
             alternative.capacity.availableForGoals -
             baseline.capacity.availableForGoals,
+
         monthlySurplusChange:
             alternative.capacity.monthlySurplus -
             baseline.capacity.monthlySurplus,
+
         reserveShortfallChange:
             alternative.capacity.reserveShortfall -
             baseline.capacity.reserveShortfall,
+
         goals
     };
 }
@@ -366,11 +419,13 @@ export function evaluateFinancialScenario({
         baseline,
         alternative,
         comparison: comparePlans(baseline, alternative),
+
         scenarioDetails: {
             oneTimeExpense: applied.oneTimeExpense,
             uncoveredOneTimeExpense:
                 applied.uncoveredOneTimeExpense
         },
+
         recommendations: createRecommendations(
             alternative,
             applied.uncoveredOneTimeExpense

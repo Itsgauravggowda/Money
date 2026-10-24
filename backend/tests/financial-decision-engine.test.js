@@ -116,3 +116,38 @@ test('does not modify saved input objects', () => {
     assert.deepEqual(financialProfile, profileCopy);
     assert.deepEqual(goals, goalsCopy);
 });
+
+test('compares goal completion estimates between plans', () => {
+    const result = evaluateFinancialScenario({
+        financialProfile,
+        goals,
+        scenario: {
+            profileChanges: {
+                monthlyIncome: 30000
+            }
+        }
+    });
+
+    const comparison = result.comparison.goals[0];
+
+    assert.ok(
+        Object.hasOwn(
+            comparison,
+            'baselineEstimatedCompletionMonths'
+        )
+    );
+
+    assert.ok(
+        Object.hasOwn(
+            comparison,
+            'alternativeEstimatedCompletionMonths'
+        )
+    );
+
+    assert.ok(
+        Object.hasOwn(
+            comparison,
+            'estimatedCompletionMonthsChange'
+        )
+    );
+});
