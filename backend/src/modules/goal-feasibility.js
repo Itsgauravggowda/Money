@@ -1,0 +1,68 @@
+
+function validateNonNegativeNumber(name, value) {
+    if (
+        typeof value !== 'number' ||
+        !Number.isFinite(value) ||
+        value < 0
+    ) {
+        throw new Error(`${name} must be a non-negative number`);
+    }
+}
+
+export function calculateGoalFeasibility({
+    targetAmount,
+    currentSavings,
+    monthsRemaining,
+    monthlyContributionCapacity
+}) {
+    validateNonNegativeNumber('targetAmount', targetAmount);
+    validateNonNegativeNumber('currentSavings', currentSavings);
+    validateNonNegativeNumber(
+        'monthlyContributionCapacity',
+        monthlyContributionCapacity
+    );
+
+    if (
+        !Number.isInteger(monthsRemaining) ||
+        monthsRemaining < 0
+    ) {
+        throw new Error(
+            'monthsRemaining must be a non-negative integer'
+        );
+    }
+
+    const remainingAmount = Math.max(
+        0,
+        targetAmount - currentSavings
+    );
+
+    const requiredMonthlyContribution =
+        monthsRemaining === 0
+            ? remainingAmount
+            : remainingAmount / monthsRemaining;
+
+    const achievable =
+        remainingAmount === 0 ||
+        (
+            monthsRemaining > 0 &&
+            requiredMonthlyContribution <= monthlyContributionCapacity
+        );
+
+    const projectedAmount =
+        currentSavings +
+        monthlyContributionCapacity * monthsRemaining;
+
+    const projectedShortfall = Math.max(
+        0,
+        targetAmount - projectedAmount
+    );
+
+    return {
+        remainingAmount,
+        requiredMonthlyContribution,
+        monthlyContributionCapacity,
+        projectedAmount,
+        projectedShortfall,
+        achievable
+    };
+}
