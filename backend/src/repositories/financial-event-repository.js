@@ -1,11 +1,17 @@
 
+import { ObjectId } from 'mongodb';
 import { getDatabase } from '../db/database.js';
 
-export async function saveFinancialEvent(event) {
+export async function saveFinancialEvent(userId, event) {
+    if (!ObjectId.isValid(userId)) {
+        throw new Error('A valid user ID is required');
+    }
+
     const db = getDatabase();
 
     const document = {
         ...event,
+        userId: new ObjectId(userId),
         createdAt: new Date()
     };
 
@@ -19,12 +25,18 @@ export async function saveFinancialEvent(event) {
     };
 }
 
-export async function getFinancialEvents() {
+export async function getFinancialEvents(userId) {
+    if (!ObjectId.isValid(userId)) {
+        throw new Error('A valid user ID is required');
+    }
+
     const db = getDatabase();
 
     return db
         .collection('financial_events')
-        .find({})
+        .find({
+            userId: new ObjectId(userId)
+        })
         .sort({ date: -1 })
         .toArray();
 }

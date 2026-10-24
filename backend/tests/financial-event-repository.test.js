@@ -1,12 +1,12 @@
 
-import 'dotenv/config';
-
-import test from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { ObjectId } from 'mongodb';
 
 import {
     connectDatabase,
-    closeDatabase
+    closeDatabase,
+    getDatabase
 } from '../src/db/database.js';
 
 import {
@@ -14,56 +14,60 @@ import {
     getFinancialEvents
 } from '../src/repositories/financial-event-repository.js';
 
-import {
-    createFinancialEvent
-} from '../src/modules/financial-events.js';
+test('saves and retrieves financial events for the correct user', async () => {
+    await connectDatabase();
 
-test('saves and retrieves a financial event from MongoDB', async () => {
-    let db;
+    const db = getDatabase();
+    const userId = new ObjectId();
+    const otherUserId = new ObjectId();
+    const testDescription = `Repository test ${new ObjectId()}`;
 
     try {
-        db = await connectDatabase();
-
-        const event = createFinancialEvent({
+        const saved = await saveFinancialEvent(userId.toString(), {
             type: 'income',
-            amount: 80000,
-            date: '2026-10-01',
-            description: 'Repository integration test'
+            amount: 2500,
+            date: new Date().toISOString(),
+            description: testDescription,
+            goalId: null
         });
 
-        const savedEvent = await saveFinancialEvent(event);
+        assert.equal(saved.userId.toString(), userId.toString());
 
-        assert.ok(savedEvent._id);
-        assert.equal(savedEvent.type, 'income');
-        assert.equal(savedEvent.amount, 80000);
-        assert.equal(savedEvent.description, 'Repository integration test');
+        const ownEvents = await getFinancialEvents(userId.toString());
+        const otherEvents = await getFinancialEvents(otherUserId.toString());
 
-        const retrievedEvent = await db
-            .collection('financial_events')
-            .findOne({ _id: savedEvent._id });
+        assert.ok(
+            ownEvents.some(event => event._id.equals(saved._id)),
+            'The owner should be able to retrieve the event'
+        );
 
-        assert.ok(retrievedEvent);
-        assert.equal(retrievedEvent.amount, 80000);
-        assert.ok(retrievedEvent.createdAt instanceof Date);
-
-        // Clean up the test document so repeated test runs
-        // do not leave extra test data in the database.
-        await db
-            .collection('financial_events')
-            .deleteOne({ _id: savedEvent._id });
+        assert.ok(
+            !otherEvents.some(event => event._id.equals(saved._id)),
+            'Another user must not retrieve the event'
+        );
     } finally {
+        await db.collection('financial_events').deleteMany({
+            userId: { $in: [userId, otherUserId] }
+        });
+
         await closeDatabase();
     }
 });
 
-test('retrieves financial events as an array', async () => {
-    try {
-        await connectDatabase();
+test('rejects an invalid user ID when saving or retrieving events', async () => {
+    await assert.rejects(
+        saveFinancialEvent('invalid-user-id', {
+            type: 'income',
+            amount: 100,
+            date: new Date().toISOString(),
+            description: 'Test event',
+            goalId: null
+        }),
+        /valid user ID is required/
+    );
 
-        const events = await getFinancialEvents();
-
-        assert.ok(Array.isArray(events));
-    } finally {
-        await closeDatabase();
-    }
+    await assert.rejects(
+        getFinancialEvents('invalid-user-id'),
+        /valid user ID is required/
+    );
 });

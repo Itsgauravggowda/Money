@@ -9,7 +9,9 @@ import {
 } from './db/database.js';
 
 import { setupDatabase } from './db/setup.js';
+
 import { handleAuthRoutes } from './routes/auth-routes.js';
+import { handleFinancialEventRoutes } from './routes/financial-event-routes.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -33,9 +35,24 @@ const server = createServer(async (req, res) => {
     }
 
     try {
-        const handled = await handleAuthRoutes(req, res, pathname);
+        const authHandled = await handleAuthRoutes(
+            req,
+            res,
+            pathname
+        );
 
-        if (handled) {
+        if (authHandled) {
+            return;
+        }
+
+        const financialEventsHandled =
+            await handleFinancialEventRoutes(
+                req,
+                res,
+                pathname
+            );
+
+        if (financialEventsHandled) {
             return;
         }
 
