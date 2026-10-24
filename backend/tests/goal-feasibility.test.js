@@ -60,7 +60,7 @@ test('identifies an unfunded goal whose deadline has arrived', () => {
     });
 
     assert.equal(result.remainingAmount, 60000);
-    assert.equal(result.requiredMonthlyContribution, 60000);
+    assert.equal(result.requiredMonthlyContribution, null);
     assert.equal(result.projectedShortfall, 60000);
     assert.equal(result.achievable, false);
 });

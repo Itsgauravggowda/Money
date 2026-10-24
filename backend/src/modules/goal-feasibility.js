@@ -37,8 +37,10 @@ export function calculateGoalFeasibility({
     );
 
     const requiredMonthlyContribution =
-        monthsRemaining === 0
-            ? remainingAmount
+    remainingAmount === 0
+        ? 0
+        : monthsRemaining === 0
+            ? null
             : remainingAmount / monthsRemaining;
 
     const achievable =
