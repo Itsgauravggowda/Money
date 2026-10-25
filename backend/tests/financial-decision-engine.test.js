@@ -195,3 +195,147 @@ test('provides actionable decision options for goals with a projected shortfall'
         ).suggestedTargetAmount >= 0
     );
 });
+test('repays the portion of an unexpected expense not covered by reserves', () => {
+    const result = evaluateFinancialScenario({
+        financialProfile,
+        goals,
+        scenario: {
+            oneTimeExpense: 25000,
+            uncoveredExpenseRepaymentMonths: 5
+        }
+    });
+
+    assert.equal(result.scenarioDetails.reserveUsed, 10000);
+    assert.equal(result.scenarioDetails.uncoveredOneTimeExpense, 15000);
+    assert.equal(result.scenarioDetails.monthlyEmergencyRepayment, 3000);
+
+    // The alternative plan must account for the extra monthly repayment.
+    assert.equal(
+        result.alternative.capacity.monthlySurplus,
+        result.baseline.capacity.monthlySurplus - 3000
+    );
+
+    // The original financial profile must remain unchanged.
+    assert.equal(financialProfile.currentEmergencyReserve, 10000);
+    assert.equal(financialProfile.mandatoryDebtPayments, 5000);
+});
+
+test('uses scenario-specific inflation without changing baseline inflation', () => {
+    const result = evaluateFinancialScenario({
+        financialProfile,
+        goals,
+        annualInflationRate: 0.02,
+        scenario: {
+            annualInflationRate: 0.10
+        }
+    });
+
+    assert.equal(
+        result.baseline.assumptions.annualInflationRate,
+        0.02
+    );
+
+    assert.equal(
+        result.alternative.assumptions.annualInflationRate,
+        0.10
+    );
+
+    assert.ok(
+        result.alternative.goals[0].targetAmount >
+        result.baseline.goals[0].targetAmount
+    );
+});
+
+test('rejects a negative unexpected expense', () => {
+    assert.throws(
+        () => evaluateFinancialScenario({
+            financialProfile,
+            goals,
+            scenario: {
+                oneTimeExpense: -1000
+            }
+        }),
+        /oneTimeExpense/
+    );
+});
+
+test('rejects an invalid emergency repayment period', () => {
+    assert.throws(
+        () => evaluateFinancialScenario({
+            financialProfile,
+            goals,
+            scenario: {
+                oneTimeExpense: 20000,
+                uncoveredExpenseRepaymentMonths: 0
+            }
+        }),
+        /uncoveredExpenseRepaymentMonths/
+    );
+});
+
+test('rejects unsupported financial profile changes', () => {
+    assert.throws(
+        () => evaluateFinancialScenario({
+            financialProfile,
+            goals,
+            scenario: {
+                profileChanges: {
+                    accountBalance: 100000
+                }
+            }
+        }),
+        /cannot change profile field/
+    );
+});
+
+test('applies goal changes to the alternative plan only', () => {
+    const originalTarget = goals[0].targetAmount;
+
+    const result = evaluateFinancialScenario({
+        financialProfile,
+        goals,
+        scenario: {
+            goalChanges: [
+                {
+                    id: 'goal-1',
+                    targetAmount: 100000
+                }
+            ]
+        }
+    });
+
+    assert.equal(result.baseline.goals[0].targetAmount, originalTarget);
+    assert.equal(result.alternative.goals[0].targetAmount, 100000);
+    assert.equal(goals[0].targetAmount, originalTarget);
+});
+
+test('rejects a scenario change for a goal that does not exist', () => {
+    assert.throws(
+        () => evaluateFinancialScenario({
+            financialProfile,
+            goals,
+            scenario: {
+                goalChanges: [
+                    {
+                        id: 'missing-goal',
+                        targetAmount: 50000
+                    }
+                ]
+            }
+        }),
+        /was not found/
+    );
+});
+
+test('rejects invalid scenario-specific inflation', () => {
+    assert.throws(
+        () => evaluateFinancialScenario({
+            financialProfile,
+            goals,
+            scenario: {
+                annualInflationRate: 1.5
+            }
+        }),
+        /annualInflationRate/
+    );
+});
