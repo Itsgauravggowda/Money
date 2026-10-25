@@ -6,31 +6,35 @@ import {
     createMonthlyPlan
 } from '../src/modules/monthly-planning.js';
 
+const standardProfile = {
+    monthlyIncome: 50000,
+    essentialExpenses: 20000,
+    mandatoryDebtPayments: 5000,
+    currentEmergencyReserve: 10000,
+    emergencyReserveTarget: 15000
+};
+
+const standardGoals = [
+    {
+        id: 'education',
+        targetAmount: 60000,
+        currentSavings: 20000,
+        monthsRemaining: 10,
+        priority: 1
+    },
+    {
+        id: 'home',
+        targetAmount: 100000,
+        currentSavings: 20000,
+        monthsRemaining: 20,
+        priority: 2
+    }
+];
+
 test('creates a monthly plan using financial capacity and goal priorities', () => {
     const plan = createMonthlyPlan({
-        financialProfile: {
-            monthlyIncome: 50000,
-            essentialExpenses: 20000,
-            mandatoryDebtPayments: 5000,
-            currentEmergencyReserve: 10000,
-            emergencyReserveTarget: 15000
-        },
-        goals: [
-            {
-                id: 'education',
-                targetAmount: 60000,
-                currentSavings: 20000,
-                monthsRemaining: 10,
-                priority: 1
-            },
-            {
-                id: 'home',
-                targetAmount: 100000,
-                currentSavings: 20000,
-                monthsRemaining: 20,
-                priority: 2
-            }
-        ]
+        financialProfile: standardProfile,
+        goals: standardGoals
     });
 
     assert.equal(plan.capacity.monthlySurplus, 25000);
@@ -51,14 +55,11 @@ test('creates a monthly plan using financial capacity and goal priorities', () =
     );
 
     assert.equal(
-    plan.allocation.allocations[1].allocatedContribution,
-    4000
-);
+        plan.allocation.allocations[1].allocatedContribution,
+        4000
+    );
 
-assert.equal(
-    plan.allocation.unallocatedAmount,
-    12000
-);
+    assert.equal(plan.allocation.unallocatedAmount, 12000);
 });
 
 test('does not allocate money to goals when there is a monthly deficit', () => {
@@ -70,22 +71,22 @@ test('does not allocate money to goals when there is a monthly deficit', () => {
             currentEmergencyReserve: 10000,
             emergencyReserveTarget: 15000
         },
-        goals: [
-            {
-                id: 'education',
-                targetAmount: 50000,
-                currentSavings: 10000,
-                monthsRemaining: 10,
-                priority: 1
-            }
-        ]
+        goals: [{
+            id: 'education',
+            targetAmount: 50000,
+            currentSavings: 10000,
+            monthsRemaining: 10,
+            priority: 1
+        }]
     });
 
     assert.equal(plan.capacity.hasMonthlyDeficit, true);
+    assert.equal(plan.capacity.monthlySurplus, -5000);
     assert.equal(plan.capacity.availableForGoals, 0);
-    assert.equal(plan.allocation.allocations.length, 0);
+    assert.deepEqual(plan.allocation.allocations, []);
+    assert.equal(plan.feasibility[0].allocatedContribution, 0);
+    assert.equal(plan.feasibility[0].achievable, false);
 });
-
 
 test('requests a decision when equal-priority goals cannot both be funded', () => {
     const plan = createMonthlyPlan({
@@ -116,25 +117,28 @@ test('requests a decision when equal-priority goals cannot both be funded', () =
 
     assert.equal(plan.capacity.availableForGoals, 5000);
     assert.equal(plan.allocation.requiresDecision, true);
+
+    assert.ok(
+        plan.allocation.decisionReason
+    );
+
+    for (const goal of plan.feasibility) {
+        assert.equal(goal.allocatedContribution, 0);
+        assert.equal(goal.achievable, false);
+    }
 });
+
 test('rejects invalid goals input', () => {
     assert.throws(
         () => createMonthlyPlan({
-            financialProfile: {
-                monthlyIncome: 30000,
-                essentialExpenses: 10000,
-                mandatoryDebtPayments: 0,
-                currentEmergencyReserve: 10000,
-                emergencyReserveTarget: 10000
-            },
+            financialProfile: standardProfile,
             goals: null
         }),
         /goals must be an array/
     );
 });
 
-
-test('does not treat individually achievable goals as jointly affordable when their combined contributions exceed the budget', () => {
+test('evaluates feasibility using actual allocations rather than total available money', () => {
     const plan = createMonthlyPlan({
         financialProfile: {
             monthlyIncome: 30000,
@@ -162,31 +166,16 @@ test('does not treat individually achievable goals as jointly affordable when th
     });
 
     assert.equal(plan.capacity.availableForGoals, 20000);
-
-    assert.equal(plan.feasibility[0].achievable, true);
-    assert.equal(plan.feasibility[1].achievable, true);
-
     assert.equal(plan.allocation.requiresDecision, true);
-    
-    assert.equal(
-    plan.feasibility[0].allocatedContribution,
-    0
-);
 
-assert.equal(
-    plan.feasibility[0].allocationShortfall,
-    10000
-);
+    assert.equal(plan.feasibility[0].achievable, false);
+    assert.equal(plan.feasibility[1].achievable, false);
 
-assert.equal(
-    plan.feasibility[1].allocatedContribution,
-    0
-);
+    assert.equal(plan.feasibility[0].allocatedContribution, 0);
+    assert.equal(plan.feasibility[0].allocationShortfall, 10000);
 
-assert.equal(
-    plan.feasibility[1].allocationShortfall,
-    12000
-);
+    assert.equal(plan.feasibility[1].allocatedContribution, 0);
+    assert.equal(plan.feasibility[1].allocationShortfall, 12000);
 });
 
 test('includes deadline status in monthly plan feasibility results', () => {
@@ -198,15 +187,13 @@ test('includes deadline status in monthly plan feasibility results', () => {
             currentEmergencyReserve: 10000,
             emergencyReserveTarget: 10000
         },
-        goals: [
-            {
-                id: 'overdue-goal',
-                targetAmount: 100000,
-                currentSavings: 40000,
-                monthsRemaining: 0,
-                priority: 1
-            }
-        ]
+        goals: [{
+            id: 'overdue-goal',
+            targetAmount: 100000,
+            currentSavings: 40000,
+            monthsRemaining: 0,
+            priority: 1
+        }]
     });
 
     assert.equal(
@@ -215,7 +202,7 @@ test('includes deadline status in monthly plan feasibility results', () => {
     );
 });
 
-test('does not allocate an overdue goal as if its full remaining balance were a normal monthly contribution', () => {
+test('does not allocate money to an overdue goal as a normal monthly contribution', () => {
     const plan = createMonthlyPlan({
         financialProfile: {
             monthlyIncome: 30000,
@@ -255,7 +242,7 @@ test('does not allocate an overdue goal as if its full remaining balance were a 
     assert.equal(activeGoal.allocatedContribution, 6000);
 });
 
-test('marks overdue goals for deadline review instead of reporting a numeric allocation shortfall', () => {
+test('marks overdue goals for deadline review without a numeric allocation shortfall', () => {
     const plan = createMonthlyPlan({
         financialProfile: {
             monthlyIncome: 30000,
@@ -264,23 +251,71 @@ test('marks overdue goals for deadline review instead of reporting a numeric all
             currentEmergencyReserve: 10000,
             emergencyReserveTarget: 10000
         },
-        goals: [
-            {
-                id: 'overdue-goal',
-                targetAmount: 100000,
-                currentSavings: 40000,
-                monthsRemaining: 0,
-                priority: 1
-            }
-        ]
+        goals: [{
+            id: 'overdue-goal',
+            targetAmount: 100000,
+            currentSavings: 40000,
+            monthsRemaining: 0,
+            priority: 1
+        }]
     });
 
-    const overdueGoal = plan.feasibility.find(
-        goal => goal.goalId === 'overdue-goal'
-    );
+    const overdueGoal = plan.feasibility[0];
 
     assert.equal(overdueGoal.remainingAmount, 60000);
     assert.equal(overdueGoal.requiredMonthlyContribution, null);
     assert.equal(overdueGoal.allocationShortfall, null);
     assert.equal(overdueGoal.requiresDeadlineReview, true);
+});
+
+test('marks a goal achievable when its actual allocation covers its required contribution', () => {
+    const plan = createMonthlyPlan({
+        financialProfile: {
+            monthlyIncome: 30000,
+            essentialExpenses: 10000,
+            mandatoryDebtPayments: 0,
+            currentEmergencyReserve: 10000,
+            emergencyReserveTarget: 10000
+        },
+        goals: [{
+            id: 'emergency-fund',
+            targetAmount: 60000,
+            currentSavings: 0,
+            monthsRemaining: 6,
+            priority: 1
+        }]
+    });
+
+    const goal = plan.feasibility[0];
+
+    assert.equal(goal.requiredMonthlyContribution, 10000);
+    assert.equal(goal.allocatedContribution, 10000);
+    assert.equal(goal.achievable, true);
+    assert.equal(goal.projectedShortfall, 0);
+    assert.equal(goal.allocationShortfall, 0);
+});
+
+test('rejects duplicate goal IDs', () => {
+    assert.throws(
+        () => createMonthlyPlan({
+            financialProfile: standardProfile,
+            goals: [
+                {
+                    id: 'duplicate',
+                    targetAmount: 10000,
+                    currentSavings: 0,
+                    monthsRemaining: 10,
+                    priority: 1
+                },
+                {
+                    id: 'duplicate',
+                    targetAmount: 20000,
+                    currentSavings: 0,
+                    monthsRemaining: 10,
+                    priority: 2
+                }
+            ]
+        }),
+        /Duplicate goal id/
+    );
 });

@@ -23,7 +23,22 @@ export function createMonthlyPlan({
         throw new Error('goals must be an array');
     }
 
-    const baseFeasibility = goals.map(goal => ({
+    const goalIds = new Set();
+
+    for (const goal of goals) {
+        if (!goal || typeof goal.id !== 'string' || !goal.id) {
+            throw new Error('Each goal must have a string id');
+        }
+
+        if (goalIds.has(goal.id)) {
+            throw new Error(`Duplicate goal id "${goal.id}"`);
+        }
+
+        goalIds.add(goal.id);
+    }
+
+    // Calculate each goal's required monthly contribution.
+    const initialFeasibility = goals.map(goal => ({
         goalId: goal.id,
         ...calculateGoalFeasibility({
             targetAmount: goal.targetAmount,
@@ -34,7 +49,7 @@ export function createMonthlyPlan({
         })
     }));
 
-    
+    // Allocate the available money according to priority.
     const allocation = capacity.hasMonthlyDeficit
         ? {
             allocations: [],
@@ -45,7 +60,7 @@ export function createMonthlyPlan({
         : allocateGoalContributions({
             availableForGoals: capacity.availableForGoals,
             goals: goals.map(goal => {
-                const goalFeasibility = baseFeasibility.find(
+                const feasibility = initialFeasibility.find(
                     item => item.goalId === goal.id
                 );
 
@@ -53,34 +68,54 @@ export function createMonthlyPlan({
                     id: goal.id,
                     priority: goal.priority,
                     requiredContribution:
-                        goalFeasibility.deadlineStatus === 'deadline_reached'
+                        feasibility.deadlineStatus === 'deadline_reached'
                             ? 0
-                            : goalFeasibility.requiredMonthlyContribution
+                            : feasibility.requiredMonthlyContribution
                 };
             })
         });
 
-
-    
-    const feasibility = baseFeasibility.map(item => {
-        const allocated = allocation.allocations.find(
-            entry => entry.goalId === item.goalId
+    // Recalculate feasibility using the actual allocation.
+    const feasibility = initialFeasibility.map(initial => {
+        const goal = goals.find(
+            item => item.id === initial.goalId
         );
 
-        const requiresDeadlineReview =
-            item.deadlineStatus === 'deadline_reached';
+        const allocated = allocation.allocations.find(
+            item => item.goalId === initial.goalId
+        );
+
+        const allocatedContribution =
+            allocated?.allocatedContribution ?? 0;
+
+        if (initial.deadlineStatus === 'deadline_reached') {
+            return {
+                ...initial,
+                allocatedContribution: 0,
+                allocationShortfall: null,
+                requiresDeadlineReview: true
+            };
+        }
+
+        const actualFeasibility = calculateGoalFeasibility({
+            targetAmount: goal.targetAmount,
+            currentSavings: goal.currentSavings,
+            monthsRemaining: goal.monthsRemaining,
+            monthlyContributionCapacity: allocatedContribution
+        });
 
         return {
-            ...item,
-            allocatedContribution:
-                allocated?.allocatedContribution ?? 0,
-            allocationShortfall: requiresDeadlineReview
-                ? null
-                : allocated?.shortfall ?? item.requiredMonthlyContribution,
-            requiresDeadlineReview
+            ...actualFeasibility,
+            goalId: goal.id,
+            allocatedContribution,
+            allocationShortfall: Math.max(
+                0,
+                initial.requiredMonthlyContribution -
+                    allocatedContribution
+            ),
+            requiresDeadlineReview: false
         };
     });
-
 
     return {
         capacity,
