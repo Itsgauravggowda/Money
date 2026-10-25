@@ -108,3 +108,21 @@ test('rejects goal withdrawals without a goal ID', () => {
         /goal ID/
     );
 });
+
+test('includes an event occurring exactly at the start date', () => {
+    const result = summarizeFinancialActuals({
+        startDate,
+        endDate,
+        events: [
+            {
+                type: 'income',
+                amount: 1000,
+                date: '2026-10-01'
+            }
+        ]
+    });
+
+    assert.equal(result.totalIncome, 1000);
+    assert.equal(result.eventCount, 1);
+});
+

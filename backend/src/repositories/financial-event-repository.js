@@ -67,9 +67,9 @@ export async function getFinancialEventsByDateRange(
         .find({
             userId: new ObjectId(userId),
             date: {
-                $gte: startDate.toISOString(),
-                $lt: endDate.toISOString()
-            }
+    $gte: startDate.toISOString().slice(0, 10),
+    $lt: endDate.toISOString().slice(0, 10)
+}
         })
         .sort({ date: 1 })
         .toArray();
