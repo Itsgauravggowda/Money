@@ -27,22 +27,40 @@ export async function saveFinancialScenario(
         .collection('financial_scenarios')
         .insertOne(document);
 
-    const savedPlan = await db
-        .collection('financial_plans')
-        .insertOne({
-            userId: ownerId,
-            scenarioId: savedScenario.insertedId,
-            baseline: result.baseline,
-            alternative: result.alternative,
-            comparison: result.comparison,
-            createdAt: now
-        });
+    try {
+        const savedPlan = await db
+            .collection('financial_plans')
+            .insertOne({
+                userId: ownerId,
+                scenarioId: savedScenario.insertedId,
+                baseline: result.baseline,
+                alternative: result.alternative,
+                comparison: result.comparison,
+                createdAt: now
+            });
 
-    return {
-        scenarioId: savedScenario.insertedId.toString(),
-        planId: savedPlan.insertedId.toString(),
-        createdAt: now
-    };
+        return {
+            scenarioId: savedScenario.insertedId.toString(),
+            planId: savedPlan.insertedId.toString(),
+            createdAt: now
+        };
+    } catch (error) {
+        try {
+            await db
+                .collection('financial_scenarios')
+                .deleteOne({
+                    _id: savedScenario.insertedId,
+                    userId: ownerId
+                });
+        } catch (rollbackError) {
+            console.error(
+                'Failed to roll back saved financial scenario:',
+                rollbackError
+            );
+        }
+
+        throw error;
+    }
 }
 
 export async function getFinancialScenariosByUser(userId) {
