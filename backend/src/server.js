@@ -16,6 +16,7 @@ import { handleGoalRoutes } from './routes/goal-routes.js';
 import { handleFinancialProfileRoutes } from './routes/financial-profile-routes.js';
 import { handleMonthlyPlanningRoutes } from './routes/monthly-planning-routes.js';
 import { handleFinancialScenarioRoutes } from './routes/financial-scenario-routes.js';
+import { handleLiabilityRoutes } from './routes/liability-routes.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -45,61 +46,40 @@ const server = createServer(async (req, res) => {
             pathname
         );
 
-        if (authHandled) {
-            return;
-        }
+        if (authHandled) return;
 
         const financialEventsHandled =
-            await handleFinancialEventRoutes(
-                req,
-                res,
-                pathname
-            );
+            await handleFinancialEventRoutes(req, res, pathname);
 
-        if (financialEventsHandled) {
-            return;
-        }
+        if (financialEventsHandled) return;
 
         const goalRoutesHandled = await handleGoalRoutes(
-    req,
-    res,
-    pathname
-);
+            req,
+            res,
+            pathname
+        );
 
-if (goalRoutesHandled) {
-    return;
-}
-const financialProfileRoutesHandled =
-    await handleFinancialProfileRoutes(
-        req,
-        res,
-        pathname
-    );
+        if (goalRoutesHandled) return;
 
-if (financialProfileRoutesHandled) {
-    return;
-}
-const monthlyPlanningRoutesHandled =
-    await handleMonthlyPlanningRoutes(
-        req,
-        res,
-        pathname
-    );
+        const financialProfileRoutesHandled =
+            await handleFinancialProfileRoutes(req, res, pathname);
 
-if (monthlyPlanningRoutesHandled) {
-    return;
-}
+        if (financialProfileRoutesHandled) return;
 
-const financialScenarioRoutesHandled =
-    await handleFinancialScenarioRoutes(
-        req,
-        res,
-        pathname
-    );
+        const monthlyPlanningRoutesHandled =
+            await handleMonthlyPlanningRoutes(req, res, pathname);
 
-if (financialScenarioRoutesHandled) {
-    return;
-}
+        if (monthlyPlanningRoutesHandled) return;
+
+        const financialScenarioRoutesHandled =
+            await handleFinancialScenarioRoutes(req, res, pathname);
+
+        if (financialScenarioRoutesHandled) return;
+
+        const liabilityRoutesHandled =
+            await handleLiabilityRoutes(req, res, pathname);
+
+        if (liabilityRoutesHandled) return;
 
         res.writeHead(404, {
             'Content-Type': 'application/json'
