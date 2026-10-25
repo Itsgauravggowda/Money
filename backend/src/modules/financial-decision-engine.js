@@ -343,11 +343,17 @@ function createRecommendations(plan, uncoveredExpense) {
         );
     }
 
-    if (uncoveredExpense > 0) {
-        recommendations.push(
-            `The unexpected expense exceeds the emergency reserve by ${uncoveredExpense}. Decide how to cover the remaining amount.`
-        );
-    }
+    
+if (uncoveredExpense > 0) {
+    recommendations.push(
+        `The unexpected expense exceeds the emergency reserve by ${uncoveredExpense}. Decide how to cover this shortfall before confirming your goal contributions.`
+    );
+
+    recommendations.push(
+        'The current goal allocation does not deduct the uncovered expense from monthly income. Reassess goal contributions after deciding how to fund the expense.'
+    );
+}
+
 
     if (plan.capacity.reserveShortfall > 0) {
         recommendations.push(
