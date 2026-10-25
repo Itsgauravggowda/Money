@@ -151,3 +151,47 @@ test('compares goal completion estimates between plans', () => {
         )
     );
 });
+
+test('provides actionable decision options for goals with a projected shortfall', () => {
+    const result = evaluateFinancialScenario({
+        financialProfile,
+        goals: [
+            {
+                id: 'goal-shortfall',
+                name: 'House Deposit',
+                targetAmount: 1000000,
+                currentSavings: 0,
+                monthsRemaining: 6,
+                priority: 1
+            }
+        ]
+    });
+
+    assert.ok(Array.isArray(result.decisionOptions));
+
+    const decision = result.decisionOptions.find(
+        option => option.goalId === 'goal-shortfall'
+    );
+
+    assert.ok(
+        decision,
+        'Expected decision options for the underfunded goal'
+    );
+
+    assert.equal(decision.requiresUserDecision, true);
+
+    assert.deepEqual(
+        decision.options.map(option => option.action),
+        [
+            'extend_deadline',
+            'reduce_target',
+            'change_priority'
+        ]
+    );
+
+    assert.ok(
+        decision.options.find(
+            option => option.action === 'reduce_target'
+        ).suggestedTargetAmount >= 0
+    );
+});
