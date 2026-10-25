@@ -319,3 +319,47 @@ test('rejects duplicate goal IDs', () => {
         /Duplicate goal id/
     );
 });
+
+test('does not let an overdue goal create a false same-priority conflict', () => {
+    const plan = createMonthlyPlan({
+        financialProfile: {
+            monthlyIncome: 25000,
+            essentialExpenses: 20000,
+            mandatoryDebtPayments: 0,
+            currentEmergencyReserve: 10000,
+            emergencyReserveTarget: 10000
+        },
+        goals: [
+            {
+                id: 'overdue-goal',
+                targetAmount: 100000,
+                currentSavings: 40000,
+                monthsRemaining: 0,
+                priority: 1
+            },
+            {
+                id: 'active-goal',
+                targetAmount: 30000,
+                currentSavings: 0,
+                monthsRemaining: 10,
+                priority: 1
+            }
+        ]
+    });
+
+    assert.equal(plan.allocation.requiresDecision, false);
+
+    const overdue = plan.feasibility.find(
+        goal => goal.goalId === 'overdue-goal'
+    );
+    const active = plan.feasibility.find(
+        goal => goal.goalId === 'active-goal'
+    );
+
+    
+    assert.equal(overdue.requiresDeadlineReview, true);
+    assert.equal(overdue.allocatedContribution, 0);
+    assert.equal(active.allocatedContribution, 3000);
+    assert.equal(active.achievable, true);
+});
+
