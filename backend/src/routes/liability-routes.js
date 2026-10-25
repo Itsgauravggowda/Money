@@ -61,7 +61,17 @@ export async function handleLiabilityRoutes(req, res, pathname) {
 
     try {
         let result;
+        if (isUpdate || isDelete) {
+    const liabilityId = match[1];
 
+    if (!/^[a-fA-F0-9]{24}$/.test(liabilityId)) {
+        sendJson(res, 400, {
+            status: 'error',
+            message: 'A valid liability ID is required'
+        });
+        return true;
+    }
+}
         if (isList) {
             result = await getUserLiabilities(auth.userId);
             sendJson(res, 200, {
