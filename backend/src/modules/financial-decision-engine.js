@@ -71,12 +71,7 @@ function validateInputs(financialProfile, goals, scenario) {
 
         goalIds.add(goal.id);
 
-        for (const field of [
-            'targetAmount',
-            'currentSavings',
-            'monthsRemaining',
-            'priority'
-        ]) {
+        for (const field of GOAL_FIELDS) {
             if (
                 typeof goal[field] !== 'number' ||
                 !Number.isFinite(goal[field]) ||
@@ -278,8 +273,7 @@ function applyScenario(profile, goals, scenario) {
         reserveBeforeShock - reserveUsed;
 
     // Model repayment as a temporary monthly obligation.
-    // This reduces money available for goals without changing
-    // essential expenses or the user's saved financial profile.
+    // The saved financial profile remains unchanged.
     updatedProfile.mandatoryDebtPayments +=
         monthlyEmergencyRepayment;
 
@@ -423,6 +417,85 @@ function createRecommendations(
     return recommendations;
 }
 
+function createDecisionOptions(plan) {
+    const options = [];
+
+    for (const goal of plan.feasibility) {
+        if (
+            goal.requiresDeadlineReview ||
+            goal.projectedShortfall <= 0
+        ) {
+            continue;
+        }
+
+        const goalDetails = plan.goals.find(
+            item => item.id === goal.goalId
+        );
+
+        if (!goalDetails) {
+            continue;
+        }
+
+        const remainingAmount = Math.max(
+            0,
+            goalDetails.targetAmount -
+                goalDetails.currentSavings
+        );
+
+        const availableContribution =
+            goal.allocatedContribution ?? 0;
+
+        const totalMonthsNeeded =
+            availableContribution > 0
+                ? Math.ceil(
+                    remainingAmount / availableContribution
+                )
+                : null;
+
+        options.push({
+            goalId: goal.goalId,
+            goalName: goalDetails.name,
+            issue: 'projected_shortfall',
+            projectedShortfall: goal.projectedShortfall,
+
+            options: [
+                {
+                    action: 'extend_deadline',
+                    description:
+                        'Extend the goal deadline to allow more time to save.',
+                    additionalMonthsNeeded:
+                        totalMonthsNeeded === null
+                            ? null
+                            : Math.max(
+                                1,
+                                totalMonthsNeeded -
+                                    goalDetails.monthsRemaining
+                            )
+                },
+                {
+                    action: 'reduce_target',
+                    description:
+                        'Consider reducing the target amount.',
+                    suggestedTargetAmount: Math.max(
+                        goalDetails.currentSavings,
+                        goalDetails.targetAmount -
+                            goal.projectedShortfall
+                    )
+                },
+                {
+                    action: 'change_priority',
+                    description:
+                        'Review this goal’s priority against other goals.'
+                }
+            ],
+
+            requiresUserDecision: true
+        });
+    }
+
+    return options;
+}
+
 export function evaluateFinancialScenario({
     financialProfile,
     goals,
@@ -475,6 +548,8 @@ export function evaluateFinancialScenario({
             alternative,
             applied.uncoveredOneTimeExpense,
             applied.monthlyEmergencyRepayment
-        )
+        ),
+
+        decisionOptions: createDecisionOptions(alternative)
     };
 }
