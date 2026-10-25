@@ -241,23 +241,56 @@ function applyScenario(profile, goals, scenario) {
         );
     }
 
+    const repaymentMonths =
+        scenario.uncoveredExpenseRepaymentMonths ?? 6;
+
+    if (
+        !Number.isInteger(repaymentMonths) ||
+        repaymentMonths < 1 ||
+        repaymentMonths > 120
+    ) {
+        throw new Error(
+            'uncoveredExpenseRepaymentMonths must be an integer between 1 and 120'
+        );
+    }
+
     const reserveBeforeShock =
         updatedProfile.currentEmergencyReserve;
 
-    updatedProfile.currentEmergencyReserve = Math.max(
-        0,
-        reserveBeforeShock - oneTimeExpense
+    const reserveUsed = Math.min(
+        reserveBeforeShock,
+        oneTimeExpense
     );
+
+    const uncoveredOneTimeExpense = Math.max(
+        0,
+        oneTimeExpense - reserveUsed
+    );
+
+    const monthlyEmergencyRepayment =
+        uncoveredOneTimeExpense === 0
+            ? 0
+            : Math.ceil(
+                uncoveredOneTimeExpense / repaymentMonths
+            );
+
+    updatedProfile.currentEmergencyReserve =
+        reserveBeforeShock - reserveUsed;
+
+    // Model repayment as a temporary monthly obligation.
+    // This reduces money available for goals without changing
+    // essential expenses or the user's saved financial profile.
+    updatedProfile.mandatoryDebtPayments +=
+        monthlyEmergencyRepayment;
 
     return {
         profile: updatedProfile,
         goals: updatedGoals,
         oneTimeExpense,
-
-        uncoveredOneTimeExpense: Math.max(
-            0,
-            oneTimeExpense - reserveBeforeShock
-        )
+        reserveUsed,
+        uncoveredOneTimeExpense,
+        repaymentMonths,
+        monthlyEmergencyRepayment
     };
 }
 
@@ -292,7 +325,6 @@ function comparePlans(baseline, alternative) {
 
         return {
             goalId,
-
             baseline: before ?? null,
             alternative: after ?? null,
 
@@ -334,26 +366,28 @@ function comparePlans(baseline, alternative) {
     };
 }
 
-function createRecommendations(plan, uncoveredExpense) {
+function createRecommendations(
+    plan,
+    uncoveredExpense,
+    monthlyEmergencyRepayment
+) {
     const recommendations = [];
 
     if (plan.capacity.hasMonthlyDeficit) {
         recommendations.push(
-            'Income does not cover essential expenses and mandatory debt payments. Review spending or income before allocating money to goals.'
+            'Income does not cover essential expenses and mandatory payments, including any modeled emergency repayment. Review the plan before allocating money to goals.'
         );
     }
 
-    
-if (uncoveredExpense > 0) {
-    recommendations.push(
-        `The unexpected expense exceeds the emergency reserve by ${uncoveredExpense}. Decide how to cover this shortfall before confirming your goal contributions.`
-    );
+    if (uncoveredExpense > 0) {
+        recommendations.push(
+            `The unexpected expense exceeds the emergency reserve by ${uncoveredExpense}.`
+        );
 
-    recommendations.push(
-        'The current goal allocation does not deduct the uncovered expense from monthly income. Reassess goal contributions after deciding how to fund the expense.'
-    );
-}
-
+        recommendations.push(
+            `The scenario models an additional monthly emergency repayment of ${monthlyEmergencyRepayment}. Confirm that this repayment schedule is realistic before adopting the plan.`
+        );
+    }
 
     if (plan.capacity.reserveShortfall > 0) {
         recommendations.push(
@@ -428,13 +462,19 @@ export function evaluateFinancialScenario({
 
         scenarioDetails: {
             oneTimeExpense: applied.oneTimeExpense,
+            reserveUsed: applied.reserveUsed,
             uncoveredOneTimeExpense:
-                applied.uncoveredOneTimeExpense
+                applied.uncoveredOneTimeExpense,
+            uncoveredExpenseRepaymentMonths:
+                applied.repaymentMonths,
+            monthlyEmergencyRepayment:
+                applied.monthlyEmergencyRepayment
         },
 
         recommendations: createRecommendations(
             alternative,
-            applied.uncoveredOneTimeExpense
+            applied.uncoveredOneTimeExpense,
+            applied.monthlyEmergencyRepayment
         )
     };
 }
