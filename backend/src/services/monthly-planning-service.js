@@ -8,6 +8,10 @@ import {
 } from './goal-service.js';
 
 import {
+    getUserLiabilities
+} from './liability-service.js';
+
+import {
     createMonthlyPlan
 } from '../modules/monthly-planning.js';
 
@@ -21,7 +25,10 @@ export async function generateUserMonthlyPlan(userId) {
         );
     }
 
-    const savedGoals = await getUserGoals(userId);
+    const [savedGoals, savedLiabilities] = await Promise.all([
+        getUserGoals(userId),
+        getUserLiabilities(userId)
+    ]);
 
     const goals = savedGoals.map(goal => ({
         id: goal._id.toString(),
@@ -31,7 +38,21 @@ export async function generateUserMonthlyPlan(userId) {
         priority: goal.priority
     }));
 
-    return createMonthlyPlan({
+    // Return active liability details without deducting payments again.
+    const liabilities = savedLiabilities
+        .filter(liability => liability.isActive)
+        .map(liability => ({
+            id: liability._id.toString(),
+            name: liability.name,
+            type: liability.type,
+            outstandingBalance: liability.outstandingBalance,
+            interestRate: liability.interestRate,
+            minimumMonthlyPayment:
+                liability.minimumMonthlyPayment,
+            dueDate: liability.dueDate
+        }));
+
+    const plan = createMonthlyPlan({
         financialProfile: {
             monthlyIncome: financialProfile.monthlyIncome,
             essentialExpenses: financialProfile.essentialExpenses,
@@ -44,4 +65,9 @@ export async function generateUserMonthlyPlan(userId) {
         },
         goals
     });
+
+    return {
+        ...plan,
+        liabilities
+    };
 }

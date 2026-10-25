@@ -11,6 +11,10 @@ import {
     evaluateFinancialScenario
 } from '../modules/financial-decision-engine.js';
 
+import {
+    saveFinancialScenario
+} from '../repositories/financial-scenario-repository.js';
+
 export async function evaluateUserFinancialScenario(
     userId,
     input = {}
@@ -43,7 +47,7 @@ export async function evaluateUserFinancialScenario(
         priority: goal.priority
     }));
 
-    return evaluateFinancialScenario({
+    const result = evaluateFinancialScenario({
         financialProfile: {
             monthlyIncome: financialProfile.monthlyIncome,
             essentialExpenses: financialProfile.essentialExpenses,
@@ -58,4 +62,15 @@ export async function evaluateUserFinancialScenario(
         annualInflationRate: input.annualInflationRate ?? 0,
         scenario: input.scenario ?? {}
     });
+
+    const saved = await saveFinancialScenario(
+        userId,
+        input,
+        result
+    );
+
+    return {
+        ...result,
+        saved
+    };
 }
