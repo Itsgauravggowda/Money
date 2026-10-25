@@ -184,3 +184,72 @@ test('rejects invalid contributions and priorities', () => {
         /priority.*must be a positive integer/i
     );
 });
+
+test('zero-contribution goals do not create a false funding conflict', () => {
+    const result = allocateGoalContributions({
+        availableForGoals: 3000,
+        goals: [
+            { id: 'already-funded', requiredContribution: 0, priority: 1 },
+            { id: 'education', requiredContribution: 5000, priority: 1 }
+        ]
+    });
+
+    assert.equal(result.requiresDecision, false);
+    assert.equal(
+        result.allocations.find(g => g.goalId === 'already-funded')
+            .shortfall,
+        0
+    );
+    assert.equal(
+        result.allocations.find(g => g.goalId === 'education')
+            .allocatedContribution,
+        3000
+    );
+    assert.equal(
+        result.allocations.find(g => g.goalId === 'education')
+            .shortfall,
+        2000
+    );
+});
+
+test('zero-contribution goals do not hide a genuine funding conflict', () => {
+    const result = allocateGoalContributions({
+        availableForGoals: 3000,
+        goals: [
+            { id: 'already-funded', requiredContribution: 0, priority: 1 },
+            { id: 'education', requiredContribution: 5000, priority: 1 },
+            { id: 'home', requiredContribution: 4000, priority: 1 }
+        ]
+    });
+
+    assert.equal(result.requiresDecision, true);
+    assert.equal(result.unallocatedAmount, 3000);
+
+    assert.equal(
+        result.allocations.find(g => g.goalId === 'already-funded')
+            .shortfall,
+        0
+    );
+
+    assert.equal(
+        result.allocations.find(g => g.goalId === 'education')
+            .allocatedContribution,
+        0
+    );
+
+    assert.equal(
+        result.allocations.find(g => g.goalId === 'home')
+            .allocatedContribution,
+        0
+    );
+});
+
+test('rejects null goals with a clear validation error', () => {
+    assert.throws(
+        () => allocateGoalContributions({
+            availableForGoals: 1000,
+            goals: [null]
+        }),
+        /Each goal must be an object/
+    );
+});

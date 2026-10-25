@@ -7,7 +7,15 @@ function validateGoals(goals) {
     const ids = new Set();
 
     for (const goal of goals) {
-        if (!goal.id || typeof goal.id !== 'string') {
+        if (
+            !goal ||
+            typeof goal !== 'object' ||
+            Array.isArray(goal)
+        ) {
+            throw new Error('Each goal must be an object');
+        }
+
+        if (typeof goal.id !== 'string' || !goal.id.trim()) {
             throw new Error('Each goal must have a string id');
         }
 
@@ -68,49 +76,59 @@ export function allocateGoalContributions({
         goals.map(goal => goal.priority)
     )].sort((a, b) => a - b);
 
-    
-for (const priority of priorities) {
-    const group = allocations.filter(
-        allocation => allocation.priority === priority
-    );
+    for (const priority of priorities) {
+        const group = allocations.filter(
+            allocation => allocation.priority === priority
+        );
 
-    const groupRequired = group.reduce(
-        (total, allocation) =>
-            total + allocation.requestedContribution,
-        0
-    );
+        // Goals requiring no contribution are already satisfied for
+        // this month's allocation and must not create a funding conflict.
+        const activeGroup = group.filter(
+            allocation => allocation.requestedContribution > 0
+        );
 
-    if (groupRequired > remaining) {
-        if (group.length > 1) {
-            return {
-                allocations,
-                unallocatedAmount: remaining,
-                requiresDecision: true,
-                decisionReason:
-                    'Available money cannot fully fund all goals at the same priority level.'
-            };
+        if (activeGroup.length === 0) {
+            continue;
         }
 
-        const allocation = group[0];
+        const groupRequired = activeGroup.reduce(
+            (total, allocation) =>
+                total + allocation.requestedContribution,
+            0
+        );
 
-        allocation.allocatedContribution = remaining;
-        allocation.shortfall =
-            allocation.requestedContribution - remaining;
+        if (groupRequired > remaining) {
+            if (activeGroup.length > 1) {
+                return {
+                    allocations,
+                    unallocatedAmount: remaining,
+                    requiresDecision: true,
+                    decisionReason:
+                        'Available money cannot fully fund all goals at the same priority level.'
+                };
+            }
 
-        remaining = 0;
-        break;
+            const allocation = activeGroup[0];
+
+            allocation.allocatedContribution = remaining;
+            allocation.shortfall = Math.max(
+                0,
+                allocation.requestedContribution - remaining
+            );
+
+            remaining = 0;
+            break;
+        }
+
+        for (const allocation of activeGroup) {
+            allocation.allocatedContribution =
+                allocation.requestedContribution;
+
+            allocation.shortfall = 0;
+        }
+
+        remaining -= groupRequired;
     }
-
-    for (const allocation of group) {
-        allocation.allocatedContribution =
-            allocation.requestedContribution;
-
-        allocation.shortfall = 0;
-    }
-
-    remaining -= groupRequired;
-}
-
 
     return {
         allocations,
